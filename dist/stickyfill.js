@@ -121,7 +121,7 @@
     }
 
     function initElement(el) {
-        if (isNaN(parseFloat(el.computed.top)) || el.isCell || el.computed.display == 'none') return;
+        if ((!el.isBottom && isNaN(parseFloat(el.computed.top))) || (el.isBottom && isNaN(parseFloat(el.computed.bottom))) || el.isCell || el.computed.display == 'none') return;
 
         el.inited = true;
 
@@ -186,7 +186,7 @@
                 nodeStyle.left = el.box.left + 'px';
                 nodeStyle.right = el.box.right + 'px';
                 nodeStyle.top = el.css.top;
-                nodeStyle.bottom = 'auto';
+                nodeStyle.bottom = el.isBottom ? el.css.bottom : 'auto';
                 nodeStyle.width = 'auto';
                 nodeStyle.marginLeft = 0;
                 nodeStyle.marginRight = 0;
@@ -198,7 +198,7 @@
                 nodeStyle.left = el.offset.left + 'px';
                 nodeStyle.right = el.offset.right + 'px';
                 nodeStyle.top = 'auto';
-                nodeStyle.bottom = 0;
+                nodeStyle.bottom = el.isBottom ? el.offset.bottom + 'px' : 0;
                 nodeStyle.width = 'auto';
                 nodeStyle.marginLeft = 0;
                 nodeStyle.marginRight = 0;
@@ -243,6 +243,7 @@
 
         var computed = {
                 top: computedStyle.top,
+                bottom: computedStyle.bottom,
                 marginTop: computedStyle.marginTop,
                 marginBottom: computedStyle.marginBottom,
                 marginLeft: computedStyle.marginLeft,
@@ -252,7 +253,9 @@
             },
             numeric = {
                 top: parseNumeric(computedStyle.top),
+                bottom: parseNumeric(computedStyle.bottom),
                 marginBottom: parseNumeric(computedStyle.marginBottom),
+                marginTop: parseNumeric(computedStyle.marginTop),
                 paddingLeft: parseNumeric(computedStyle.paddingLeft),
                 paddingRight: parseNumeric(computedStyle.paddingRight),
                 borderLeftWidth: parseNumeric(computedStyle.borderLeftWidth),
@@ -260,6 +263,8 @@
             };
 
         node.style.position = cachedPosition;
+
+        var isBottom = computedStyle.bottom !== '' && computedStyle.bottom !== 'auto';
 
         var css = {
                 position: node.style.position,
@@ -290,6 +295,18 @@
                     borderBottomWidth: parseNumeric(parentComputedStyle.borderBottomWidth)
                 }
             },
+            offset = {
+                top: nodeOffset.win.top - parentOffset.win.top - parent.numeric.borderTopWidth,
+                left: nodeOffset.win.left - parentOffset.win.left - parent.numeric.borderLeftWidth,
+                right: -nodeOffset.win.right + parentOffset.win.right - parent.numeric.borderRightWidth,
+                bottom: -nodeOffset.win.bottom + parentOffset.win.bottom - parent.numeric.borderBottomWidth
+            },
+
+            limit = {
+                start: isBottom ? parentOffset.doc.top + node.offsetHeight - document.documentElement.clientHeight : nodeOffset.doc.top - numeric.top,
+                end: isBottom ? nodeOffset.doc.top + node.offsetHeight - document.documentElement.clientHeight + numeric.bottom: parentOffset.doc.top + parentNode.offsetHeight - parent.numeric.borderBottomWidth -
+                node.offsetHeight - numeric.top - numeric.marginBottom
+            },
 
             el = {
                 node: node,
@@ -297,13 +314,10 @@
                     left: nodeOffset.win.left,
                     right: html.clientWidth - nodeOffset.win.right
                 },
-                offset: {
-                    top: nodeOffset.win.top - parentOffset.win.top - parent.numeric.borderTopWidth,
-                    left: nodeOffset.win.left - parentOffset.win.left - parent.numeric.borderLeftWidth,
-                    right: -nodeOffset.win.right + parentOffset.win.right - parent.numeric.borderRightWidth
-                },
+                offset: offset,
                 css: css,
                 isCell: computedStyle.display == 'table-cell',
+                isBottom: isBottom,
                 computed: computed,
                 numeric: numeric,
                 width: nodeOffset.win.right - nodeOffset.win.left,
@@ -311,11 +325,7 @@
                 mode: -1,
                 inited: false,
                 parent: parent,
-                limit: {
-                    start: nodeOffset.doc.top - numeric.top,
-                    end: parentOffset.doc.top + parentNode.offsetHeight - parent.numeric.borderBottomWidth -
-                        node.offsetHeight - numeric.top - numeric.marginBottom
-                }
+                limit: limit
             };
 
         return el;
